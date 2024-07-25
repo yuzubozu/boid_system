@@ -1,0 +1,10 @@
+[package]
+name = "boid_bird"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.13.0"
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+serde_json = "1.0"
+rand = "0.8.5"
