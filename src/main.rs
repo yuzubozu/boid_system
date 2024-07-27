@@ -12,9 +12,9 @@ const WINDOW_HEIGHT: f32 = 500.;
 const WINDOW_MARGIN: f32 = 20.;
 
 //const for display
-const FISH_WIDTH: f32 = 1.;
-const FISH_HEIGHT: f32 = 3.;
-const FISH_LIGHTNESS: f32 = 0.7;
+const BIRD_WIDTH: f32 = 1.;
+const BIRD_HEIGHT: f32 = 3.;
+const BIRD_LIGHTNESS: f32 = 0.7;
 
 //const for initial conditions
 const SPAWN_RANGE_HEIGHT: f32 = 500.;
@@ -38,7 +38,7 @@ const MOUSE_COEFFICIENT: f32 = 30000.0;
 const MOUSE_SIGHT_RAD: f32 = 240.;
 const MOUSE_SIGHT_DEGREE: f32 = PI * 120. / 180.;
 
-const FISH_NUM: usize = 200;
+const BIRD_NUM: usize = 200;
 const MAX_VEL: f32 = 100.;
 
 fn main() {
@@ -56,8 +56,8 @@ fn main() {
             }),
             ..default()
         }))
-        .add_systems(Startup, (setup_camera, setup_fish))
-        .add_systems(Update, (boid_system, apply_force_system, update_fish))
+        .add_systems(Startup, (setup_camera, setup_bird))
+        .add_systems(Update, (boid_system, apply_force_system, update_bird))
         .run();
 }
 
@@ -238,16 +238,16 @@ fn quat_to_hue(quat: Quat) -> f32 {
     (quat_to_radian(quat) / PI * 180.) + 180.
 }
 
-fn create_fish_color(fish_quat: Quat, fish_vel: Vec2) -> Color {
+fn create_bird_color(bird_quat: Quat, bird_vel: Vec2) -> Color {
     Color::hsl(
-        quat_to_hue(fish_quat),
-        fish_vel.length() / MAX_VEL,
-        FISH_LIGHTNESS,
+        quat_to_hue(bird_quat),
+        bird_vel.length() / MAX_VEL,
+        BIRD_LIGHTNESS,
     )
 }
 
-fn create_fish_quat(fish_vel: Vec2) -> Quat {
-    Quat::from_rotation_arc_2d(Vec2::X, fish_vel.normalize())
+fn create_bird_quat(bird_vel: Vec2) -> Quat {
+    Quat::from_rotation_arc_2d(Vec2::X, bird_vel.normalize())
 }
 
 /**
@@ -260,15 +260,15 @@ fn setup_camera(mut commands: Commands) {
     });
 }
 
-fn setup_fish(
+fn setup_bird(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let mut rng = rand::thread_rng();
-    //create fish
-    for i in 0..FISH_NUM {
-        let fish_shape = Mesh2dHandle(meshes.add(Ellipse::new(FISH_HEIGHT, FISH_WIDTH)));
+    //create bird
+    for i in 0..BIRD_NUM {
+        let bird_shape = Mesh2dHandle(meshes.add(Ellipse::new(BIRD_HEIGHT, BIRD_WIDTH)));
         let position_vec = Vec2::from((
             rng.gen::<f32>() * SPAWN_RANGE_WIDTH - SPAWN_RANGE_WIDTH / 2.,
             rng.gen::<f32>() * SPAWN_RANGE_HEIGHT - SPAWN_RANGE_HEIGHT / 2.,
@@ -277,12 +277,12 @@ fn setup_fish(
             (rng.gen::<f32>() - 0.5) * MAX_VEL,
             (rng.gen::<f32>() - 0.5) * MAX_VEL,
         ));
-        let fish_quat = create_fish_quat(velocity_vec);
+        let bird_quat = create_bird_quat(velocity_vec);
 
         commands.spawn((
             MaterialMesh2dBundle {
-                mesh: fish_shape,
-                material: materials.add(create_fish_color(fish_quat, velocity_vec)),
+                mesh: bird_shape,
+                material: materials.add(create_bird_color(bird_quat, velocity_vec)),
                 transform: Transform::from_xyz(position_vec.x, position_vec.y, 0.0).with_rotation(
                     Quat::from_rotation_arc_2d(Vec2::X, velocity_vec.normalize()),
                 ),
@@ -302,7 +302,7 @@ fn setup_fish(
 /**
  * functions to update
  */
-fn update_fish(
+fn update_bird(
     mut query: Query<(&mut Transform, &Handle<ColorMaterial>, &Position, &Velocity)>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -311,15 +311,15 @@ fn update_fish(
         .for_each(|(mut transform, color, pos, vel)| {
             let pos_vec = pos.get_vec2();
             let vel_vec = vel.get_vec2();
-            let fish_quat = create_fish_quat(vel_vec);
+            let bird_quat = create_bird_quat(vel_vec);
             let color_mat = materials.get_mut(color).unwrap();
-            color_mat.color = create_fish_color(fish_quat, vel_vec);
-            *transform = Transform::from_xyz(pos_vec.x, pos_vec.y, 0.).with_rotation(fish_quat);
+            color_mat.color = create_bird_color(bird_quat, vel_vec);
+            *transform = Transform::from_xyz(pos_vec.x, pos_vec.y, 0.).with_rotation(bird_quat);
         });
 }
 
 /**
- * calculation of force for each fish feat boid system
+ * calculation of force for each bird feat boid system
  */
 fn boid_system(
     query: Query<(&ID, &Position, &Velocity), With<FishMarker>>,
@@ -332,8 +332,8 @@ fn boid_system(
     //calc force
     query.iter().for_each(|(id_base, pos_base, vel_base)| {
         let (
-            in_range_alignment_fish,
-            in_range_cohesion_fish,
+            in_range_alignment_bird,
+            in_range_cohesion_bird,
             in_range_sum_separation_force,
             in_range_sum_alignment_vel,
             in_range_sum_cohesion_pos,
@@ -346,8 +346,8 @@ fn boid_system(
                 Position::origin(),
             ),
             |(
-                mut sum_alignment_fish,
-                mut sum_cohesion_fish,
+                mut sum_alignment_bird,
+                mut sum_cohesion_bird,
                 mut sum_separation_force,
                 mut sum_alignment_vel,
                 mut sum_cohesion_pos,
@@ -378,7 +378,7 @@ fn boid_system(
                 ) && id_base != id_target
                 {
                     sum_alignment_vel = sum_alignment_vel.add(*vel_target);
-                    sum_alignment_fish += 1.;
+                    sum_alignment_bird += 1.;
                 }
                 if pos_base.is_in_range(
                     *pos_target,
@@ -388,12 +388,12 @@ fn boid_system(
                 ) && id_base != id_target
                 {
                     sum_cohesion_pos = sum_cohesion_pos.add(*pos_target);
-                    sum_cohesion_fish += 1.;
+                    sum_cohesion_bird += 1.;
                 }
 
                 (
-                    sum_alignment_fish,
-                    sum_cohesion_fish,
+                    sum_alignment_bird,
+                    sum_cohesion_bird,
                     sum_separation_force,
                     sum_alignment_vel,
                     sum_cohesion_pos,
@@ -405,20 +405,20 @@ fn boid_system(
         force = force
             .add(in_range_sum_separation_force)
             .multiply(SEPARATION_COEFFICIENT);
-        if in_range_alignment_fish > 0. {
+        if in_range_alignment_bird > 0. {
             force = force.add(
                 alignment(
                     *vel_base,
-                    in_range_sum_alignment_vel.div(in_range_alignment_fish),
+                    in_range_sum_alignment_vel.div(in_range_alignment_bird),
                 )
                 .multiply(ALIGNMENT_COEFFICIENT),
             );
         }
-        if in_range_cohesion_fish > 0. {
+        if in_range_cohesion_bird > 0. {
             force = force.add(
                 cohesion(
                     *pos_base,
-                    in_range_sum_cohesion_pos.div(in_range_cohesion_fish),
+                    in_range_sum_cohesion_pos.div(in_range_cohesion_bird),
                 )
                 .multiply(COHESION_COEFFICIENT),
             );
